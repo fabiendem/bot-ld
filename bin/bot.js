@@ -1,5 +1,6 @@
 'use strict';
 
+var Promise = require('promise');
 var parser = require('../lib/parser.js');
 var tt = require('../lib/tt.js');
 
@@ -36,36 +37,59 @@ var sourceCsv = require('../.source_csv.js');
 var URL_SOURCE_CSV_ARTICLES = sourceCsv.items;
 var URL_SOURCE_CSV_CATEGORIES = sourceCsv.categories;
 
+var loadData = function () {
+    return new Promise.all([
+        parser.getRandomItem(URL_SOURCE_CSV_ARTICLES, { firstLineIsColumnsTitle: true }),
+        parser.getItems(URL_SOURCE_CSV_CATEGORIES, { firstLineIsColumnsTitle: null })
+    ]);
+};
 
-parser.getRandomItem(URL_SOURCE_CSV_ARTICLES, { firstLineIsColumnsTitle: true }, function (item) {
-    console.log('Random article ' + item.pname);
-    if(item.dispo === 'En stock') {
+loadData().then(function(results) {
+    console.log('Loaded both CSV');
+    var article = results[0];
+    var catalogCategories = results[1];
+
+    console.log('Random article ' + article.pname);
+    if(article.dispo === 'En stock') {
         // Grab an array of the article categories
-        var articleCategoryIdsString = item.cat_ids;
+        var articleCategoryIdsString = article.cat_ids;
         var articleCategoryIds = articleCategoryIdsString.split(',');
 
-        parser.getItems(URL_SOURCE_CSV_CATEGORIES, { firstLineIsColumnsTitle: null }, function (categories) {
-            //console.log(categories);
-            var category;
-            for (var i = 0; i < categories.length; i++) {
-                category = categories[i];
+        var catalogCategory;
+        var tweeted = false;
 
-                if(articleCategoryIds.indexOf(category[0]) > -1) {
-                    console.log('Detailed category found: ' + category[1]);
-                    if(acceptedCategories.indexOf(category[2]) > -1) {
-                        console.log('General category ' + category[2] + ' accepted!');
+        // Go through the categories of the catalog
+        for (var i = 0; i < catalogCategories.length; i++) {
+            if(tweeted) {
+                return;
+            }
+            catalogCategory = catalogCategories[i];
 
-                        var initialUrl = item.url;
-                        var url = initialUrl.substring(0, initialUrl.length - '.htm'.length) + '~trkr~tt.htm';
-                        var tweet = item.teaser + ' : ' + item.pname + ' ' + url + ' ' + item.price_eur + '€';
-                        console.log('Tweeting: ' + tweet);
-                        tt.tweet(tweet);
-                    }
-                    else {
-                        console.log('General category ' + category[2] + ' refused!');
-                    }
+            // Find corresponding category
+            if(articleCategoryIds.indexOf(catalogCategory[0]) > -1) {
+                console.log('Detailed category found: ' + catalogCategory[1]);
+                if(acceptedCategories.indexOf(catalogCategory[2]) > -1) {
+                    console.log('General category ' + catalogCategory[2] + ' accepted!');
+
+                    // Build up the url
+                    var initialUrl = article.url;
+                    var url = initialUrl.substring(0, initialUrl.length - '.htm'.length) + '~trkr~tt.htm';
+
+                    // Build up the tweet
+                    var tweet = article.teaser + ' : ' + article.pname + ' ' + url + ' ' + article.price_eur + '€';
+                    
+                    // Tweet !
+                    console.log('Tweeting: ' + tweet);
+                    tt.tweet(tweet);
+                    tweeted = true;
+                }
+                else {
+                    console.log('General category ' + catalogCategory[2] + ' refused!');
                 }
             }
-        });
+        }
     }
+
+}, function(error) {
+    console.error('Failed to load one of the array', error);
 });
