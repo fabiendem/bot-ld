@@ -44,13 +44,31 @@ var loadData = function () {
     ]);
 };
 
+var buildTrackedURL = function (initialUrl) {
+    return initialUrl.substring(0, initialUrl.length - '.htm'.length) + '~trkr~tt.htm';
+};
+
+var buildTweet = function (article, url) {
+    return article.teaser + ' : ' + article.pname + ' ' + url + ' ' + article.price_eur + '€';
+};
+
+var isAcceptedCategory = function (acceptedCategories, categoryId) {
+    return acceptedCategories.indexOf(categoryId) > -1;
+};
+
+var isArticleAvailable = function (article) {
+    return article.dispo === 'En stock';
+};
+
 loadData().then(function(results) {
     console.log('Loaded both CSV');
+    
     var article = results[0];
     var catalogCategories = results[1];
 
     console.log('Random article ' + article.pname);
-    if(article.dispo === 'En stock') {
+
+    if(isArticleAvailable(article)) {
         // Grab an array of the article categories
         var articleCategoryIdsString = article.cat_ids;
         var articleCategoryIds = articleCategoryIdsString.split(',');
@@ -60,23 +78,25 @@ loadData().then(function(results) {
 
         // Go through the categories of the catalog
         for (var i = 0; i < catalogCategories.length; i++) {
+            
             if(tweeted) {
                 return;
             }
+
             catalogCategory = catalogCategories[i];
 
             // Find corresponding category
             if(articleCategoryIds.indexOf(catalogCategory[0]) > -1) {
                 console.log('Detailed category found: ' + catalogCategory[1]);
-                if(acceptedCategories.indexOf(catalogCategory[2]) > -1) {
+                if(isAcceptedCategory(acceptedCategories, catalogCategory[2])) {
+
                     console.log('General category ' + catalogCategory[2] + ' accepted!');
 
                     // Build up the url
-                    var initialUrl = article.url;
-                    var url = initialUrl.substring(0, initialUrl.length - '.htm'.length) + '~trkr~tt.htm';
+                    var url = buildTrackedURL(article.url);
 
                     // Build up the tweet
-                    var tweet = article.teaser + ' : ' + article.pname + ' ' + url + ' ' + article.price_eur + '€';
+                    var tweet = buildTweet(article, url);
                     
                     // Tweet !
                     console.log('Tweeting: ' + tweet);
@@ -89,7 +109,6 @@ loadData().then(function(results) {
             }
         }
     }
-
 }, function(error) {
     console.error('Failed to load one of the array', error);
 });
