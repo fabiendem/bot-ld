@@ -1,8 +1,10 @@
 'use strict';
 
 var Promise = require('promise');
-var parser = require('../lib/parser.js');
+var csvLoader = require('../lib/csv-loader.js');
 var tt = require('../lib/tt.js');
+var feed = require('../lib/feed.js');
+var utils = require('../lib/utils.js');
 
 var acceptedCategories = [
  '1',
@@ -33,14 +35,14 @@ var acceptedCategories = [
  '34',
  '341']; 
 
-var sourceCsv = require('../.source_csv.js');
-var URL_SOURCE_CSV_ARTICLES = sourceCsv.items;
-var URL_SOURCE_CSV_CATEGORIES = sourceCsv.categories;
+var SourceCsv = require('../.source_csv.js');
+var URL_SOURCE_CSV_ARTICLES = SourceCsv.items;
+var URL_SOURCE_CSV_CATEGORIES = SourceCsv.categories;
 
-var loadData = function () {
+var loadItemsAndCategories = function () {
     return new Promise.all([
-        parser.getRandomItem(URL_SOURCE_CSV_ARTICLES, { firstLineIsColumnsTitle: true }),
-        parser.getItems(URL_SOURCE_CSV_CATEGORIES, { firstLineIsColumnsTitle: null })
+        csvLoader.getItems(URL_SOURCE_CSV_ARTICLES, { firstLineIsColumnsTitle: true }),
+        csvLoader.getItems(URL_SOURCE_CSV_CATEGORIES, { firstLineIsColumnsTitle: null })
     ]);
 };
 
@@ -52,6 +54,19 @@ var buildTweet = function (article, url) {
     return article.teaser + ' : ' + article.pname + ' ' + url + ' ' + article.price_eur + '€';
 };
 
+var tweetArticle = function (article) {
+    console.log('Tweet article ' + article.pname);
+    // Build up the url
+    var url = buildTrackedURL(article.url);
+
+    // Build up the tweet
+    var tweet = buildTweet(article, url);
+    
+    // Tweet !
+    console.log('Tweeting: ' + tweet);
+    tt.tweet(tweet);
+};
+
 var isAcceptedCategory = function (acceptedCategories, categoryId) {
     return acceptedCategories.indexOf(categoryId) > -1;
 };
@@ -60,55 +75,67 @@ var isArticleAvailable = function (article) {
     return article.dispo === 'En stock';
 };
 
-loadData().then(function(results) {
-    console.log('Loaded both CSV');
-    
-    var article = results[0];
-    var catalogCategories = results[1];
+var findAcceptableArticle = function (articles, catalogCategories) {
+    console.log('Finding acceptable article...');
+    var article = utils.getRandomItem(articles);
+    var articleFound = false;
 
-    console.log('Random article ' + article.pname);
+    while (! articleFound) {
+        console.log('Try article...');
+        if(isArticleAvailable(article)) {
+            console.log('Article available');
 
-    if(isArticleAvailable(article)) {
-        // Grab an array of the article categories
-        var articleCategoryIdsString = article.cat_ids;
-        var articleCategoryIds = articleCategoryIdsString.split(',');
+            // Grab an array of the article categories
+            var articleCategoryIdsString = article.cat_ids;
+            var articleCategoryIds = articleCategoryIdsString.split(',');
+            var catalogCategory;
 
-        var catalogCategory;
-        var tweeted = false;
+            // Go through the categories of the catalog
+            for (var i = 0; i < catalogCategories.length; i++) {
+                // Break second loop if article has been found
+                if (articleFound) {
+                    break;
+                }
 
-        // Go through the categories of the catalog
-        for (var i = 0; i < catalogCategories.length; i++) {
-            
-            if(tweeted) {
-                return;
-            }
+                catalogCategory = catalogCategories[i];
 
-            catalogCategory = catalogCategories[i];
-
-            // Find corresponding category
-            if(articleCategoryIds.indexOf(catalogCategory[0]) > -1) {
-                console.log('Detailed category found: ' + catalogCategory[1]);
-                if(isAcceptedCategory(acceptedCategories, catalogCategory[2])) {
-
-                    console.log('General category ' + catalogCategory[2] + ' accepted!');
-
-                    // Build up the url
-                    var url = buildTrackedURL(article.url);
-
-                    // Build up the tweet
-                    var tweet = buildTweet(article, url);
-                    
-                    // Tweet !
-                    console.log('Tweeting: ' + tweet);
-                    tt.tweet(tweet);
-                    tweeted = true;
+                // Find corresponding category
+                if(articleCategoryIds.indexOf(catalogCategory[0]) > -1) {
+                    console.log('Detailed category found: ' + catalogCategory[1]);
+                    if(isAcceptedCategory(acceptedCategories, catalogCategory[2])) {
+                        console.log('General category ' + catalogCategory[2] + ' accepted!');
+                        articleFound = true;
+                    }
+                    else {
+                        console.log('General category ' + catalogCategory[2] + ' refused!');
+                        article = utils.getRandomItem(articles);
+                    }
                 }
                 else {
-                    console.log('General category ' + catalogCategory[2] + ' refused!');
+                    article = utils.getRandomItem(articles);
                 }
             }
         }
+        else {
+            console.log('Getting another article...');
+            article = utils.getRandomItem(articles);
+        }
     }
-}, function(error) {
+    console.log('Found article');
+    return article;
+};
+
+loadItemsAndCategories().then(function (results) {
+    console.log('Loaded both CSV');
+    // Split results from both promises
+    var articles = results[0];
+    var catalogCategories = results[1];
+
+    var article = findAcceptableArticle(articles, catalogCategories);
+    tweetArticle(article);
+},
+function(error) {
     console.error('Failed to load one of the array', error);
 });
+
+//feed.getArticles();
