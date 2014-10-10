@@ -143,8 +143,11 @@ var tweetRandomArticle = function () {
 
 tweetRandomArticle();
 setInterval(function() {
+    // Tweet article
     tweetRandomArticle();
-}, 30 * 60 * 1000);
 
+    // Or tweet random news from rss
+
+}, 30 * 60 * 1000);
 
 //feed.getArticles();
