@@ -125,17 +125,26 @@ var findAcceptableArticle = function (articles, catalogCategories) {
     return article;
 };
 
-loadItemsAndCategories().then(function (results) {
-    console.log('Loaded both CSV');
-    // Split results from both promises
-    var articles = results[0];
-    var catalogCategories = results[1];
+var tweetRandomArticle = function () {
+    console.log('Tweeting a random article...');
+    loadItemsAndCategories().then(function (results) {
+        console.log('Loaded both CSV');
+        // Split results from both promises
+        var articles = results[0];
+        var catalogCategories = results[1];
 
-    var article = findAcceptableArticle(articles, catalogCategories);
-    tweetArticle(article);
-},
-function(error) {
-    console.error('Failed to load one of the array', error);
-});
+        var article = findAcceptableArticle(articles, catalogCategories);
+        tweetArticle(article);
+    },
+    function(error) {
+        console.error('Failed to load one of the array', error);
+    });
+};
+
+tweetRandomArticle();
+setInterval(function() {
+    tweetRandomArticle();
+}, 30 * 60 * 1000);
+
 
 //feed.getArticles();
