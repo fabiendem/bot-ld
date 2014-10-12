@@ -30,3 +30,4 @@ node_modules
 # My credentials et sources
 .twitter_credentials.js
 .source_csv.js
+.feed_keyword.js

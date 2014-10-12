@@ -6,6 +6,9 @@ var tt = require('../lib/tt.js');
 var feed = require('../lib/feed.js');
 var utils = require('../lib/utils.js');
 
+var SourceCsv = require('../.source_csv.js');
+var keyword = require('../.feed_keyword.js');
+
 var acceptedCategories = [
  '1',
  '11',
@@ -35,7 +38,6 @@ var acceptedCategories = [
  '34',
  '341']; 
 
-var SourceCsv = require('../.source_csv.js');
 var URL_SOURCE_CSV_ARTICLES = SourceCsv.items;
 var URL_SOURCE_CSV_CATEGORIES = SourceCsv.categories;
 
@@ -141,13 +143,62 @@ var tweetRandomArticle = function () {
     });
 };
 
-tweetRandomArticle();
+var tweetNews = function (keyword, acceptedNewsWebsites, newsPublished) {
+    feed.getNews(keyword, acceptedNewsWebsites)
+    .then(function(news) {
+        console.log('Yeah, got the news');
+        if(news.length > 0) {
+            var indexNewsItem = 0;
+            var newsItem = news[indexNewsItem];
+            while(newsPublished.indexOf(newsItem.title) > -1) {
+                indexNewsItem++;
+                if(indexNewsItem >= news.length) {
+                    console.log('No more news to publish for now :(');
+                    return;
+                }
+                newsItem = news[indexNewsItem];
+            }
+            console.log('News item: ' + newsItem.title);
+            var hashtag = keyword;
+            var tweet = newsItem.title + ' #' + 'dentelle' + ' ' + newsItem.link;
+            console.log('Tweeting: ' + tweet);
+            newsPublished.push(newsItem.title);
+            tt.tweet(tweet);
+        }
+        else {
+            console.log('No news to publish for now :(');
+        }
+    }, function (error) {
+        console.error('Error while grabbing the news feed', error);
+    });
+};
+
+var idNewsYahoo = 5651794;
+var idNewsPurePeople = 3373637;
+var acceptedNewsWebsites = [idNewsYahoo,idNewsPurePeople];
+var newsPublished = [];
+
+var randomTweet = function() {
+    // Get a random number between 0 and 100 inclusive
+    var randomNumber = utils.getRandomIndex(101);
+
+    if(randomNumber >= 70) {
+        console.log('Destiny says tweet an article');
+        // Tweet article
+        tweetRandomArticle();
+    }
+    else {
+        console.log('Destiny says tweet a news');
+        tweetNews(keyword, acceptedNewsWebsites, newsPublished);
+    }
+};
+
+var intervalMinutes = 30;
+var intervalMs = intervalMinutes * 60 * 1000;
+console.log('Starting bot at ' + utils.getFormattedDate());
+randomTweet();
 setInterval(function() {
-    // Tweet article
-    tweetRandomArticle();
-
-    // Or tweet random news from rss
-
-}, 30 * 60 * 1000);
-
-//feed.getArticles();
+    console.log('Periodic random tweet at ' + utils.getFormattedDate());
+    randomTweet();
+    console.log('Next tweet in ' + intervalMinutes + ' minutes');
+}, intervalMs);
