@@ -173,7 +173,7 @@ var tweetNews = function (keyword, acceptedNewsWebsites, newsPublished) {
     });
 };
 
-var idNewsYahoo = 5651794;
+var idNewsYahoo = 6478847;
 var idNewsPurePeople = 3373637;
 var acceptedNewsWebsites = [idNewsYahoo,idNewsPurePeople];
 var newsPublished = [];
