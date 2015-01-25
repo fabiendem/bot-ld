@@ -1,3 +1,5 @@
+.DS_Store
+
 # Logs
 logs
 *.log
@@ -31,3 +33,4 @@ node_modules
 .twitter_credentials.js
 .source_csv.js
 .feed_keyword.js
+
